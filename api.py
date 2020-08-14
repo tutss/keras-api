@@ -1,26 +1,20 @@
-import flask
-from flask import request, jsonify
-import numpy as np
-import io
-from PIL import Image
 from keras.applications import ResNet50
 from keras.preprocessing.image import img_to_array
 from keras.applications import imagenet_utils
-import tensorflow as tf
+from PIL import Image
+import numpy as np
+import flask
+import io
 
 app = flask.Flask(__name__)
-app.config['DEBUG'] = True
+app.config['DEBUG'] = False
 
 model = None
-
-
 # Loading the model for prediction
 def load_model():
     # loading keras model pre trained on imagenet
     global model
     model = ResNet50(weights='imagenet')
-    global graph
-    graph = tf.get_default_graph()
 
 # Prepare input to prediction
 def prepare_to_model(image, target):
@@ -39,28 +33,25 @@ def open_image():
     image = prepare_to_model(image, target=(224, 224))
     return image
 
-
 @app.route("/predict", methods=['POST'])
 def predict():
     data = {'success': False}
-    if request.method == 'POST':
-        if request.files.get('image'):
+    if flask.request.method == 'POST':
+        if flask.request.files.get('image'):
             image = open_image()
-            with graph.as_default():
-                predictions = model.predict(image)
-                results = imagenet_utils.decode_predictions(predictions)
-                data['predictions'] = []
-                for (imagenetID, label, prob) in results[0]:
-                    r = {'label': label, 'probability': float(prob)}
-                    data['predictions'].append(r)
-
-                data['success'] = True
-
-    return jsonify(data)
+            predictions = model.predict(image)
+            results = imagenet_utils.decode_predictions(predictions)
+            data['predictions'] = []
+            for (imagenetID, label, prob) in results[0]:
+                r = {'label': label, 'probability': float(prob)}
+                data['predictions'].append(r)
+            data['success'] = True
+    return flask.jsonify(data)
 
 
 if __name__ == "__main__":
-    print(("* Loading Keras model and Flask starting server..."
+    print(("====> Loading Keras model and Flask starting server..."
         "please wait until server has fully started"))
     load_model()
+    print("====> Loaded model...")
     app.run()
